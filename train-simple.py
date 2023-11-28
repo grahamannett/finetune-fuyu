@@ -8,23 +8,22 @@ from simple_parsing import ArgumentParser, Serializable
 
 @dataclass
 class TrainConfig(Serializable):
-    # since slurm seems to fuck up progress bar (so cant see in wandb/log.o%job)
-    batch_log_every: int = False  # log
-    num_iters: int = False  # num iters if not going through full dataset
-
     model_name: str = "adept/fuyu-8b"
 
+    # training
+    num_iters: int = 100
     epochs: int = 10
     grad_accum_steps: int = 4
 
+    # dataloader
     dl_batch_size: int = 2
     dl_num_workers: int = 0
     dl_pin_memory: bool = True
 
+    # optimizer/scheduler/clipping
     weight_decay: float = 0.0
     gradient_clipping: float = 1.0
     learning_rate: float = 1e-03
-    scheduler_type: str = "cosine"
     gamma: float = 0.85
 
 
@@ -72,7 +71,6 @@ class MockDataset(torch.utils.data.Dataset):
 
 
 def loss_fn(logits, labels):
-    # b, l needed when fsdp
     b, l, c = logits.shape
 
     # Shift so that tokens < n predict n
@@ -133,7 +131,7 @@ if __name__ == "__main__":
     processor = transformers.models.fuyu.FuyuProcessor.from_pretrained(train_config.model_name)
     model = transformers.models.fuyu.FuyuForCausalLM.from_pretrained(train_config.model_name, device_map="auto")
 
-    train_dataset = MockDataset()
+    train_dataset = MockDataset(num_iters=train_config.num_iters)
     train_dl = torch.utils.data.DataLoader(
         train_dataset,
         collate_fn=DataCollator(processor),
