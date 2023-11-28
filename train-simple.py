@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import random
+from dataclasses import dataclass
 
 import torch
 import transformers
@@ -40,9 +40,11 @@ class DataCollator:
 class MockDataset(torch.utils.data.Dataset):
     def __init__(
         self,
+        # available on linux/mac
         words_file: str = "/usr/share/dict/words",
         max_words: int = 100,
         num_iters: int = 100,
+        # allow variable sized images
         image_max: tuple[int, int] = [1000, 1000],
         image_min: tuple[int, int] = [500, 500],
     ):
