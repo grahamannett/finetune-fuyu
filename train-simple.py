@@ -93,6 +93,7 @@ def train(
     scheduler,
 ):
     model.train()
+    print(f"Starting train for {train_config.epochs} epochs...")
     for epoch in range(train_config.epochs):
         # reset loss per epoch
         losses = 0
@@ -117,8 +118,10 @@ def train(
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad(set_to_none=True)
-
             losses += loss.item()
+            print(f"Batch loss: {loss.item()}")
+
+        print(f"Epoch[{epoch}] loss: {losses}")
 
 
 if __name__ == "__main__":
