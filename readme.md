@@ -1,4 +1,3 @@
-
 # 🍅+🍎 = fuyu
 
 here are some simple scripts to see if fuyu-8b works with your resources.
