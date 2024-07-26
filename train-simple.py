@@ -2,12 +2,11 @@ import random
 from dataclasses import dataclass
 
 import torch
-import transformers
-from simple_parsing import ArgumentParser, Serializable
+from transformers import FuyuForCausalLM, FuyuProcessor, HfArgumentParser
 
 
 @dataclass
-class TrainConfig(Serializable):
+class TrainConfig:
     model_name: str = "adept/fuyu-8b"
 
     # training
@@ -29,7 +28,7 @@ class TrainConfig(Serializable):
 
 @dataclass
 class DataCollator:
-    processor: transformers.models.fuyu.FuyuProcessor
+    processor: FuyuProcessor
 
     def __call__(self, samples: list[dict]):
         text = [sample["text"] for sample in samples]
@@ -127,14 +126,14 @@ def train(
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_arguments(TrainConfig, dest="train_config")
-    args = parser.parse_args()
+    parser = HfArgumentParser(TrainConfig)
+    train_config: TrainConfig = parser.parse_args_into_dataclasses()[0]
 
-    train_config: TrainConfig = args.train_config
-
-    processor = transformers.models.fuyu.FuyuProcessor.from_pretrained(train_config.model_name)
-    model = transformers.models.fuyu.FuyuForCausalLM.from_pretrained(train_config.model_name, device_map="auto")
+    processor = FuyuProcessor.from_pretrained(train_config.model_name)
+    model = FuyuForCausalLM.from_pretrained(
+        train_config.model_name,
+        device_map="auto",
+    )
 
     train_dataset = MockDataset(num_iters=train_config.num_iters)
     train_dl = torch.utils.data.DataLoader(
@@ -146,10 +145,16 @@ if __name__ == "__main__":
     )
 
     optimizer = torch.optim.AdamW(
-        model.parameters(), lr=train_config.learning_rate, weight_decay=train_config.weight_decay
+        model.parameters(),
+        lr=train_config.learning_rate,
+        weight_decay=train_config.weight_decay,
     )
 
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=train_config.gamma)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer,
+        step_size=1,
+        gamma=train_config.gamma,
+    )
 
     train(
         train_config,

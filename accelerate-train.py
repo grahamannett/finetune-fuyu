@@ -2,13 +2,12 @@ import random
 from dataclasses import dataclass
 
 import torch
-import transformers
+from transformers import FuyuForCausalLM, FuyuProcessor, HfArgumentParser
 from accelerate import Accelerator, DeepSpeedPlugin
-from simple_parsing import ArgumentParser, Serializable
 
 
 @dataclass
-class TrainConfig(Serializable):
+class TrainConfig:
     model_name: str = "adept/fuyu-8b"
     # accelerate relatd
     mixed_precision: str = "bf16"
@@ -33,7 +32,7 @@ class TrainConfig(Serializable):
 
 @dataclass
 class DataCollator:
-    processor: transformers.models.fuyu.FuyuProcessor
+    processor: FuyuProcessor
 
     def __call__(self, samples: list[dict]):
         text = [sample["text"] for sample in samples]
@@ -132,10 +131,8 @@ def train(
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_arguments(TrainConfig, dest="train_config")
-    args = parser.parse_args()
-    train_config: TrainConfig = args.train_config
+    parser = HfArgumentParser(TrainConfig)
+    train_config: TrainConfig = parser.parse_args_into_dataclasses()[0]
 
     accelerator = Accelerator(
         mixed_precision=train_config.mixed_precision,
@@ -146,8 +143,8 @@ if __name__ == "__main__":
         ),
     )
 
-    processor = transformers.models.fuyu.FuyuProcessor.from_pretrained(train_config.model_name)
-    model = transformers.models.fuyu.FuyuForCausalLM.from_pretrained(train_config.model_name)
+    processor = FuyuProcessor.from_pretrained(train_config.model_name)
+    model = FuyuForCausalLM.from_pretrained(train_config.model_name)
 
     # if not working, uncomment below.  if that runs then you just dont have enough gpu's
     # model.language_model.model.layers = model.language_model.model.layers[:2]
@@ -162,12 +159,18 @@ if __name__ == "__main__":
     )
 
     optimizer = torch.optim.AdamW(
-        model.parameters(), lr=train_config.learning_rate, weight_decay=train_config.weight_decay
+        model.parameters(),
+        lr=train_config.learning_rate,
+        weight_decay=train_config.weight_decay,
     )
 
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=train_config.gamma)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer, step_size=1, gamma=train_config.gamma
+    )
 
-    model, optimizer, train_dl, scheduler = accelerator.prepare(model, optimizer, train_dl, scheduler)
+    model, optimizer, train_dl, scheduler = accelerator.prepare(
+        model, optimizer, train_dl, scheduler
+    )
 
     train(
         train_config,
